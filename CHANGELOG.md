@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/cthulhu-rlyeh/necronomicon/compare/v0.1.0...v0.1.1) (2023-01-10)
+
+
+### Bug Fixes
+
+* **workflow:** missed an item for windows ([a3e3103](https://github.com/cthulhu-rlyeh/necronomicon/commit/a3e3103436274079f22bcc0809419e6e2aaf9ff5))
+
 ## 0.1.0 (2023-01-10)
 
 
