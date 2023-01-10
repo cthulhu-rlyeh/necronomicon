@@ -61,6 +61,6 @@ jobs:
         with:
           asset_name: necronomicon-${{ needs.release.outputs.tag_name }}-windows-x86_64.zip
           asset_content_type: application/zip
-          asset_path: target/release/netmon-server.zip
+          asset_path: target/release/necronomicon.zip
           upload_url: ${{ needs.release.outputs.upload_url }}
   
