@@ -2510,6 +2510,7 @@ version = "0.1.1"
 dependencies = [
  "lazy_static",
  "libp2p",
+ "rs-snowflake",
  "tokio",
 ]
 
@@ -3278,6 +3279,12 @@ dependencies = [
  "web-sys",
  "winapi",
 ]
+
+[[package]]
+name = "rs-snowflake"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e60ef3b82994702bbe4e134d98aadca4b49ed04440148985678d415c68127666"
 
 [[package]]
 name = "rtcp"

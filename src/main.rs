@@ -2,7 +2,10 @@ use std::{
     error::Error,
     collections::HashMap,
 };
-use tokio::io::{self, AsyncBufReadExt};
+use tokio::{
+    sync::broadcast,
+    io::{self, AsyncBufReadExt},
+};
 use libp2p::{
     identity, mdns, mplex, noise, tcp, Multiaddr, PeerId, Transport,
     core::upgrade,
@@ -10,8 +13,9 @@ use libp2p::{
     floodsub::{self, Floodsub, FloodsubEvent},
     swarm::{NetworkBehaviour, SwarmEvent},
 };
+use snowflake::SnowflakeIdGenerator;
 lazy_static::lazy_static!(
-
+    static ref CHAN_CAP: usize = 100;
 );
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "MyBehaviourEvent")]
@@ -43,44 +47,96 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .authenticate(noise::NoiseAuthenticated::xx(&keys)?)
         .multiplex(mplex::MplexConfig::new())
     .boxed();
-
-    let topic = floodsub::Topic::new("chat");
-
+    let topic = floodsub::Topic::new("0");
     let mdns_behaviour = mdns::Behaviour::new(mdns::Config::default())?;
     let mut behaviour = MyBehaviour {
         floodsub: Floodsub::new(id),
         mdns: mdns_behaviour,
     };
-
     behaviour.floodsub.subscribe(topic.clone());
-
     let mut swarm = libp2p::swarm::Swarm::with_tokio_executor(transport, behaviour, id);
-
     if let Some(to_dial) = std::env::args().nth(1) {
         let addr: Multiaddr = to_dial.parse()?;
         swarm.dial(addr)?;
-        println!("dialed {to_dial:?}");
+        println!("init-> dialed {to_dial:?}");
     }
-
-    let mut stdin = io::BufReader::new(io::stdin()).lines();
-
     swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
-
-    let cache: HashMap<u64, String> = HashMap::new();
+    let (tx, mut rx) = broadcast::channel::<String>(*CHAN_CAP);
+    let internal_tx = tx.clone();
+    let mut internal_rx = rx.resubscribe();
+    tokio::spawn(async move {
+        let mut stdin = io::BufReader::new(io::stdin()).lines();
+        loop {
+            tokio::select!{
+                line = stdin.next_line() => {
+                    match line {
+                        Err(err) => eprintln!("console-> failed to parse stdin: {err}"),
+                        Ok(line) => {
+                            match line {
+                                None => eprintln!("console-> stdin closed"),
+                                Some(line) => {
+                                    match internal_tx.send(line) {
+                                        Err(err) => eprintln!("console-> failed to send stdin to swarm: {err}"),
+                                        Ok(_) => {}
+                                    }
+                                }
+                            }
+                        }
+                    };
+                }
+                recv = internal_rx.recv() => {
+                    match recv {
+                        Err(err) => eprintln!("internal-> failed to receive message: {err}"),
+                        Ok(msg) => {
+                            let cmds = msg.split(" ").collect::<Vec<&str>>();
+                            match cmds[0] {
+                                "" => eprintln!("internal-> malformed message, first command blank: {msg}"),
+                                _ => {},
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+    let cache: HashMap<String, String> = HashMap::new();
+    let mut id_gen = SnowflakeIdGenerator::new(1, 1);
     loop {
         tokio::select!{
-            line = stdin.next_line() => {
-                let line = line?.expect("stdin closed");
-                swarm.behaviour_mut().floodsub.publish(topic.clone(), line.as_bytes());
+            recv = rx.recv() => {
+                match recv {
+                    Err(err) => eprintln!("swarm-> failed to receive message: {err}"),
+                    Ok(msg) => {
+                        let cmds = msg.split(" ").collect::<Vec<&str>>();
+                        match cmds[0] {
+                            "swarm" => swarm.behaviour_mut().floodsub.publish(topic.clone(), cmds[1..].join(" ").as_bytes()),
+                            "cache_get" => {
+                                match cache.get(cmds[2]) {
+                                    None => eprintln!("swarm-> requested cache key has no value: {msg}"),
+                                    Some(val) => {
+                                        match tx.send(["cache_return", cmds[1], val].join(" ")) {
+                                            Err(err) => eprintln!("swarm: failed to send response to cache request: {err}"),
+                                            Ok(_) => {}
+                                        }
+                                    }
+                                }
+                            },
+                            "id" => println!("swarm-> local peer id: {}", swarm.local_peer_id()),
+                            "random" => println!("swarm-> generated random: {}", id_gen.generate()),
+                            "" => eprintln!("swarm-> malformed message, first command blank: {msg}"),
+                            _ => {},
+                        }
+                    }
+                }
             }
             event = swarm.select_next_some() => {
                 match event {
                     SwarmEvent::NewListenAddr { address, .. } => {
-                        println!("listening to {address:?}");
+                        println!("swarm-> listening to {address:?}");
                     }
                     SwarmEvent::Behaviour(MyBehaviourEvent::Floodsub(FloodsubEvent::Message(message))) => {
                         println!(
-                                "received from {:?}: {:?}",
+                                "swarm-> received from {:?}: {:?}",
                                 message.source,
                                 String::from_utf8_lossy(&message.data),
                             );
