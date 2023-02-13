@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.0.0](https://github.com/cthulhu-rlyeh/necronomicon/compare/v0.1.1...v1.0.0) (2023-01-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* begin complete rework to use libp2p
+
+### Features
+
+* basic server connection ([a5148da](https://github.com/cthulhu-rlyeh/necronomicon/commit/a5148dab4a1c4524a123af859970199fcf238c42))
+* begin complete rework to use libp2p ([c5308b2](https://github.com/cthulhu-rlyeh/necronomicon/commit/c5308b24793ffc29a5d29638f745c015b3508ddb))
+* swarm broadcasting tested successfully ([cc996f8](https://github.com/cthulhu-rlyeh/necronomicon/commit/cc996f8bb307775b1dfd6678d4b58b4f20abc5bb))
+
+
+### Bug Fixes
+
+* check server response ([88eb485](https://github.com/cthulhu-rlyeh/necronomicon/commit/88eb485c146c94a108f21d1bf64cd1f2c0de0922))
+* rework away from using kad ([599c05d](https://github.com/cthulhu-rlyeh/necronomicon/commit/599c05d335708bfe1dd57f931823cc87fdb434c3))
+
 ## [0.1.1](https://github.com/cthulhu-rlyeh/necronomicon/compare/v0.1.0...v0.1.1) (2023-01-10)
 
 
